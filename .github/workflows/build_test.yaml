@@ -1,0 +1,54 @@
+name: rust-lib
+on:
+  workflow_call:
+    inputs:
+      toolchain:        { type: string,  default: stable }
+      workdir:          { type: string,  default: "." }
+      need_protoc:      { type: boolean, default: false }
+      run_build:        { type: boolean, default: true }     # Şirketin build adımı için
+      cargo_term_color: { type: string,  default: "always" } # Şirket env
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: ${{ inputs.cargo_term_color }}
+
+    steps:
+      - name: Install protoc
+        if: ${{ inputs.need_protoc }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ inputs.toolchain }}
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Format
+        working-directory: ${{ inputs.workdir }}
+        run: cargo fmt -- --check
+
+      - name: Clippy
+        working-directory: ${{ inputs.workdir }}
+        run: cargo clippy -- -D warnings
+
+      - name: Build
+        if: ${{ inputs.run_build }}
+        working-directory: ${{ inputs.workdir }}
+        run: cargo build --verbose
+
+      - name: Test
+        working-directory: ${{ inputs.workdir }}
+        run: cargo test --all --locked
