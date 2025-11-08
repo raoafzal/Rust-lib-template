@@ -2,11 +2,11 @@ name: rust-lib
 on:
   workflow_call:
     inputs:
-      toolchain:        { type: string,  default: stable }
       workdir:          { type: string,  default: "." }
-      need_protoc:      { type: boolean, default: false }
-      run_build:        { type: boolean, default: true }     # Şirketin build adımı için
-      cargo_term_color: { type: string,  default: "always" } # Şirket env
+      need_protoc:      { type: boolean, default: true }     # default: always setup as company
+      run_build:        { type: boolean, default: true }      # default: build as company
+      cargo_term_color: { type: string,  default: "always" }
+      toolchain:        { type: string,  default: "" }        # "" => do not set up a toolchain
 
 jobs:
   ci:
@@ -23,10 +23,14 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      # İsteğe bağlı toolchain (pinlemek istersen değer ver)
+      - name: Setup Rust toolchain
+        if: ${{ inputs.toolchain != '' }}
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ inputs.toolchain }}
 
+      # (Opsiyonel, performans için) Cargo cache
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -49,6 +53,6 @@ jobs:
         working-directory: ${{ inputs.workdir }}
         run: cargo build --verbose
 
-      - name: Test
+      - name: Run unit tests
         working-directory: ${{ inputs.workdir }}
-        run: cargo test --all --locked
+        run: cargo test
